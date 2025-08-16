@@ -137,30 +137,38 @@ def load_model_results():
     """Load all model comparison results"""
     results = {}
     
+    # Try different possible paths for the CSV files
+    import os
+    possible_paths = ['.', '/mount/src/enhanced-energy-arbitrage-simulator', os.getcwd()]
+    
+    def find_and_load_csv(filename):
+        for path in possible_paths:
+            full_path = os.path.join(path, filename)
+            if os.path.exists(full_path):
+                try:
+                    return pd.read_csv(full_path)
+                except Exception as e:
+                    continue
+        return None
+    
     # Original neural network results
-    try:
-        original = pd.read_csv('model_comparison_summary.csv')
+    original = find_and_load_csv('model_comparison_summary.csv')
+    if original is not None:
         original['Phase'] = 'Original Neural Networks'
         results['original'] = original
-    except FileNotFoundError:
-        pass
     
     # Improved neural network results  
-    try:
-        improved = pd.read_csv('improved_model_results.csv')
+    improved = find_and_load_csv('improved_model_results.csv')
+    if improved is not None:
         improved['Phase'] = 'Improved Neural Networks'
         improved = improved.rename(columns={'MAPE_All': 'MAPE'})
         results['improved'] = improved
-    except FileNotFoundError:
-        pass
     
     # Final optimization results
-    try:
-        final = pd.read_csv('final_optimization_results.csv')
+    final = find_and_load_csv('final_optimization_results.csv')
+    if final is not None:
         final['Phase'] = 'Final Optimization'
         results['final'] = final
-    except FileNotFoundError:
-        pass
     
     return results
 
@@ -640,6 +648,10 @@ elif page == "🤖 Model Development":
     
     # Load model results
     results = load_model_results()
+    
+    # Debug information
+    st.write(f"Debug: Results keys found: {list(results.keys())}")
+    st.write(f"Debug: Results empty?: {not results}")
     
     if not results:
         st.warning("Model comparison results not found. Please run the model comparison scripts first.")
