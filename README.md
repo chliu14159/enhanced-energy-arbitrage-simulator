@@ -1,23 +1,54 @@
-# 🏆 Enhanced Jiangsu Energy Arbitrage Simulator
+# 🏆 Jiangsu Energy Analysis Platform
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app-url.streamlit.app)
 
 ## 🎯 Overview
 
-A **production-ready energy arbitrage simulator** that combines AI-powered price predictions with comprehensive arbitrage strategy analysis for the Jiangsu Province electricity market.
+A **comprehensive data science platform** that tells the complete story of energy market analysis - from data exploration to AI model development to arbitrage strategy implementation for the Jiangsu Province electricity market.
 
-### ⚡ **Key Features:**
-- **🤖 AI Price Predictions**: Ridge Regression model with 9.55% MAPE accuracy
-- **📊 Real Market Data**: 2,976 data points from Jiangsu Province July 2025
-- **💹 4 Enhanced Strategies**: Complete arbitrage portfolio analysis
-- **📚 Full Transparency**: Mathematical equations for every calculation
-- **⚡ Interactive Dashboard**: Professional-grade analytics interface
+### ⚡ **Complete Data Science Pipeline:**
+- **🔍 Data Exploration**: Comprehensive EDA with price patterns and market insights
+- **🤖 Model Development**: Journey from 20% MAPE (neural networks) to 9.55% MAPE (Ridge)
+- **💹 Arbitrage Simulation**: 4 enhanced strategies with AI-powered predictions
+- **📚 Complete Methodology**: Mathematical transparency for every calculation
+- **⚡ Interactive Platform**: Multi-page professional interface
 
 ---
 
 ## 🚀 **Live Demo**
 
-**Try it now:** [Enhanced Arbitrage Simulator](https://your-app-url.streamlit.app) *(Link will be updated after deployment)*
+**Try it now:** [Jiangsu Energy Analysis Platform](https://your-app-url.streamlit.app) *(Link will be updated after deployment)*
+
+## 🧭 **Platform Navigation**
+
+### **🏠 Overview Page**
+Complete platform introduction and success story timeline
+
+### **🔍 Data Exploration (EDA)**
+- **2,976 data points** from Jiangsu Province July 2025
+- **Time series analysis** with real-time vs day-ahead prices
+- **Hourly patterns** showing peak/valley dynamics
+- **Correlation analysis** between market variables
+- **Key market insights** and price spread calculations
+
+### **🤖 Model Development**
+- **Model evolution story**: From neural networks to Ridge Regression
+- **Performance comparison**: Visual MAPE reduction journey
+- **54% improvement**: From 20-22% MAPE to 9.55% MAPE
+- **Key learnings**: Why simplicity beat complexity
+- **Technical details**: Feature engineering and model selection
+
+### **💹 Arbitrage Simulation**
+- **AI-powered predictions** using the winning Ridge model
+- **4 enhanced strategies** with complete mathematical formulations
+- **Interactive parameters** for portfolio optimization
+- **Risk management** with regulatory compliance
+
+### **📚 Complete Methodology**
+- **Mathematical framework** for every calculation
+- **EDA methodology** with code examples
+- **Model development process** step-by-step
+- **Arbitrage formulations** with business logic
 
 ---
 
