@@ -136,19 +136,14 @@ def train_winning_model():
 def load_model_results():
     """Load all model comparison results"""
     results = {}
-    missing_files = []
     
     # Original neural network results
     try:
         original = pd.read_csv('model_comparison_summary.csv')
         original['Phase'] = 'Original Neural Networks'
         results['original'] = original
-        st.success("✅ Loaded model_comparison_summary.csv")
     except FileNotFoundError:
-        missing_files.append('model_comparison_summary.csv')
-        st.warning(f"⚠️ Missing: model_comparison_summary.csv")
-    except Exception as e:
-        st.error(f"❌ Error loading model_comparison_summary.csv: {e}")
+        pass
     
     # Improved neural network results  
     try:
@@ -156,32 +151,16 @@ def load_model_results():
         improved['Phase'] = 'Improved Neural Networks'
         improved = improved.rename(columns={'MAPE_All': 'MAPE'})
         results['improved'] = improved
-        st.success("✅ Loaded improved_model_results.csv")
     except FileNotFoundError:
-        missing_files.append('improved_model_results.csv')
-        st.warning(f"⚠️ Missing: improved_model_results.csv")
-    except Exception as e:
-        st.error(f"❌ Error loading improved_model_results.csv: {e}")
+        pass
     
     # Final optimization results
     try:
         final = pd.read_csv('final_optimization_results.csv')
         final['Phase'] = 'Final Optimization'
         results['final'] = final
-        st.success("✅ Loaded final_optimization_results.csv")
     except FileNotFoundError:
-        missing_files.append('final_optimization_results.csv')
-        st.warning(f"⚠️ Missing: final_optimization_results.csv")
-    except Exception as e:
-        st.error(f"❌ Error loading final_optimization_results.csv: {e}")
-    
-    # Debug information
-    import os
-    st.info(f"📁 Current working directory: {os.getcwd()}")
-    st.info(f"📋 Files in current directory: {', '.join(os.listdir('.'))}")
-    
-    if missing_files:
-        st.error(f"🔍 Missing files: {', '.join(missing_files)}")
+        pass
     
     return results
 
@@ -799,7 +778,7 @@ elif page == "🤖 Model Development":
 elif page == "💹 Arbitrage Simulation":
     # COMPLETE ARBITRAGE SIMULATOR
     st.header("💹 Enhanced Arbitrage Simulation")
-    st.markdown("**Interactive AI-powered arbitrage strategy analysis with complete methodology transparency**")
+    st.markdown("**Interactive machine learning-based arbitrage strategy analysis with complete methodology transparency**")
     
     # Always show sidebar controls first
     st.sidebar.header("🎛️ Simulation Parameters")
@@ -854,7 +833,7 @@ elif page == "💹 Arbitrage Simulation":
         st.sidebar.warning("⚠️ **Data Loading Failed**\nPlease check the data files and try again.")
     
     # Model performance info
-    st.sidebar.subheader("🏆 AI Model Performance")
+    st.sidebar.subheader("🏆 Model Performance")
     if data_loaded:
         st.sidebar.metric("Model Type", "Ridge Regression")
         st.sidebar.metric("Training MAPE", "9.55%")
@@ -871,7 +850,7 @@ elif page == "💹 Arbitrage Simulation":
     button_help = None if data_loaded else "Data loading failed - simulation unavailable"
     
     if st.sidebar.button("🎯 Run Enhanced Simulation", type="primary", disabled=button_disabled, help=button_help):
-        with st.spinner("🔄 Running AI-powered arbitrage analysis..."):
+        with st.spinner("🔄 Running enhanced arbitrage analysis..."):
             
             try:
                 # Initialize enhanced simulator
@@ -948,16 +927,16 @@ elif page == "💹 Arbitrage Simulation":
                          delta=f"Best: ¥{best_day_profit/1000:.1f}k")
             
             with col3:
-                st.metric("AI Model MAPE", f"{actual_mape:.2f}%",
+                st.metric("Model MAPE", f"{actual_mape:.2f}%",
                          delta="Excellent!" if actual_mape < 12 else "Good")
             
             with col4:
-                st.metric("AI-Enhanced Profits", f"¥{ai_contribution/1000:.1f}k",
+                st.metric("ML-Enhanced Profits", f"¥{ai_contribution/1000:.1f}k",
                          delta=f"{ai_contribution/total_profit*100:.1f}% of total" if total_profit != 0 else "0%")
             
             # Tabs for detailed analysis
             tab1, tab2, tab3 = st.tabs([
-                "💹 Strategy Breakdown", "🤖 AI Predictions vs Reality", "📊 Daily Performance"
+                "💹 Strategy Breakdown", "📊 Model Predictions vs Reality", "📈 Daily Performance"
             ])
             
             with tab1:
@@ -968,7 +947,7 @@ elif page == "💹 Arbitrage Simulation":
                 **🎯 Four Enhanced Arbitrage Strategies:**
                 
                 1. **⏰ Temporal Arbitrage**: Exploit differences between contract and spot prices
-                2. **🤖 AI-Enhanced Arbitrage**: Use ML predictions to trade against day-ahead prices  
+                2. **📊 ML-Enhanced Arbitrage**: Use machine learning predictions to trade against day-ahead prices  
                 3. **📈 Peak/Off-peak Optimization**: Shift demand between peak and valley periods
                 4. **🌱 Renewable Arbitrage**: Trade based on renewable generation variability
                 """)
@@ -976,7 +955,7 @@ elif page == "💹 Arbitrage Simulation":
                 # Strategy breakdown chart
                 strategy_totals = {
                     'Temporal Arbitrage': df['temporal_arbitrage'].sum(),
-                    'AI-Enhanced Arbitrage': df['ai_arbitrage'].sum(),
+                    'ML-Enhanced Arbitrage': df['ai_arbitrage'].sum(),
                     'Peak/Off-peak Optimization': df['tou_arbitrage'].sum(),
                     'Renewable Arbitrage': df['renewable_arbitrage'].sum()
                 }
@@ -995,7 +974,7 @@ elif page == "💹 Arbitrage Simulation":
                                        text="P₁ = V₁ × |P_contract - P_spot| × η₁<br>V₁ = DailyVolume × (3% - MAPE)/100",
                                        showarrow=True, arrowhead=2, font=dict(size=10))
                     
-                    fig1.add_annotation(x=1, y=strategy_totals['AI-Enhanced Arbitrage']/2,
+                    fig1.add_annotation(x=1, y=strategy_totals['ML-Enhanced Arbitrage']/2,
                                        text="P₂ = V₂ × |P_predicted - P_DA| × η₂<br>V₂ = DailyVolume × 0.8 × (1-MAPE/100)",
                                        showarrow=True, arrowhead=2, font=dict(size=10))
                     
