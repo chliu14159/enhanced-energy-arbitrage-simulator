@@ -372,7 +372,7 @@ if 'predictions_data' not in st.session_state:
 # =============================================================================
 
 if page == "🏠 Overview":
-    # Overview page content
+    # Overview page content (same as before)
     st.header("🎯 Platform Overview")
     
     col1, col2 = st.columns(2)
@@ -780,7 +780,20 @@ elif page == "💹 Arbitrage Simulation":
     st.header("💹 Enhanced Arbitrage Simulation")
     st.markdown("**Interactive AI-powered arbitrage strategy analysis with complete methodology transparency**")
     
-    # Always show sidebar controls first
+    # Load real data and model
+    try:
+        real_data = load_real_data()
+        model, scaler_X, scaler_y, features, preprocessed_data = train_winning_model()
+        
+        if real_data is None or model is None:
+            st.error("Failed to load data or train model. Please check your data files.")
+            st.stop()
+            
+    except Exception as e:
+        st.error(f"Error loading data or model: {e}")
+        st.stop()
+
+    # Sidebar controls (only for arbitrage page)
     st.sidebar.header("🎛️ Simulation Parameters")
     
     # Portfolio configuration
@@ -788,68 +801,34 @@ elif page == "💹 Arbitrage Simulation":
     portfolio_size = st.sidebar.slider("Annual Portfolio Size (GWh)", 500, 3000, 1500, 100)
     base_price = st.sidebar.slider("Base Contract Price (RMB/MWh)", 350, 550, 420, 10)
     
-    # Try to load real data and model
-    data_loaded = False
-    try:
-        real_data = load_real_data()
-        model, scaler_X, scaler_y, features, preprocessed_data = train_winning_model()
-        
-        if real_data is not None and model is not None:
-            data_loaded = True
-        else:
-            st.error("Failed to load data or train model. Please check your data files.")
-            
-    except Exception as e:
-        st.error(f"Error loading data or model: {e}")
-
-    # Time period selection (show even if data not loaded)
-    if data_loaded:
-        # Use real data for date range
-        min_date = preprocessed_data.index.min().date()
-        max_date = preprocessed_data.index.max().date()
-        default_start = min_date + timedelta(days=1)
-        max_end = max_date - timedelta(days=7)
-    else:
-        # Use dummy dates if data not loaded
-        from datetime import date
-        min_date = date(2025, 7, 1)
-        max_date = date(2025, 7, 31)
-        default_start = date(2025, 7, 2)
-        max_end = date(2025, 7, 24)
+    # Time period selection
+    st.sidebar.subheader("📅 Analysis Period")
+    # Use preprocessed data for date range (it has lag features)
+    min_date = preprocessed_data.index.min().date()
+    max_date = preprocessed_data.index.max().date()
     
     start_date = st.sidebar.date_input(
         "Start Date", 
-        value=default_start,  # Use safe default
+        value=min_date + timedelta(days=1),  # Start after lag features are available
         min_value=min_date,
-        max_value=max_end
+        max_value=max_date - timedelta(days=7)
     )
     
     num_days = st.sidebar.slider("Number of Days to Analyze", 3, 14, 7)
     
     # Add helpful information
-    if data_loaded:
-        st.sidebar.info(f"📅 **Available Data Range:**\n{min_date} to {max_date}\n\n💡 **Recommended:** Start from {default_start} to ensure lag features are available.")
-    else:
-        st.sidebar.warning("⚠️ **Data Loading Failed**\nPlease check the data files and try again.")
+    st.sidebar.info(f"📅 **Available Data Range:**\n{min_date} to {max_date}\n\n💡 **Recommended:** Start from {min_date + timedelta(days=1)} to ensure lag features are available.")
     
     # Model performance info
     st.sidebar.subheader("🏆 AI Model Performance")
-    if data_loaded:
-        st.sidebar.metric("Model Type", "Ridge Regression")
-        st.sidebar.metric("Training MAPE", "9.55%")
-        st.sidebar.metric("R² Score", "0.905")
-        st.sidebar.success("✅ Production Ready Model")
-    else:
-        st.sidebar.error("❌ Model Not Available")
+    st.sidebar.metric("Model Type", "Ridge Regression")
+    st.sidebar.metric("Training MAPE", "9.55%")
+    st.sidebar.metric("R² Score", "0.905")
+    st.sidebar.success("✅ Production Ready Model")
     
     # Simulation control
     st.sidebar.subheader("🚀 Run Analysis")
-    
-    # Only enable button if data is loaded
-    button_disabled = not data_loaded
-    button_help = None if data_loaded else "Data loading failed - simulation unavailable"
-    
-    if st.sidebar.button("🎯 Run Enhanced Simulation", type="primary", disabled=button_disabled, help=button_help):
+    if st.sidebar.button("🎯 Run Enhanced Simulation", type="primary"):
         with st.spinner("🔄 Running AI-powered arbitrage analysis..."):
             
             try:
