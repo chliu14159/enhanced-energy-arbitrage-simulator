@@ -136,14 +136,19 @@ def train_winning_model():
 def load_model_results():
     """Load all model comparison results"""
     results = {}
+    missing_files = []
     
     # Original neural network results
     try:
         original = pd.read_csv('model_comparison_summary.csv')
         original['Phase'] = 'Original Neural Networks'
         results['original'] = original
+        st.success("✅ Loaded model_comparison_summary.csv")
     except FileNotFoundError:
-        pass
+        missing_files.append('model_comparison_summary.csv')
+        st.warning(f"⚠️ Missing: model_comparison_summary.csv")
+    except Exception as e:
+        st.error(f"❌ Error loading model_comparison_summary.csv: {e}")
     
     # Improved neural network results  
     try:
@@ -151,16 +156,32 @@ def load_model_results():
         improved['Phase'] = 'Improved Neural Networks'
         improved = improved.rename(columns={'MAPE_All': 'MAPE'})
         results['improved'] = improved
+        st.success("✅ Loaded improved_model_results.csv")
     except FileNotFoundError:
-        pass
+        missing_files.append('improved_model_results.csv')
+        st.warning(f"⚠️ Missing: improved_model_results.csv")
+    except Exception as e:
+        st.error(f"❌ Error loading improved_model_results.csv: {e}")
     
     # Final optimization results
     try:
         final = pd.read_csv('final_optimization_results.csv')
         final['Phase'] = 'Final Optimization'
         results['final'] = final
+        st.success("✅ Loaded final_optimization_results.csv")
     except FileNotFoundError:
-        pass
+        missing_files.append('final_optimization_results.csv')
+        st.warning(f"⚠️ Missing: final_optimization_results.csv")
+    except Exception as e:
+        st.error(f"❌ Error loading final_optimization_results.csv: {e}")
+    
+    # Debug information
+    import os
+    st.info(f"📁 Current working directory: {os.getcwd()}")
+    st.info(f"📋 Files in current directory: {', '.join(os.listdir('.'))}")
+    
+    if missing_files:
+        st.error(f"🔍 Missing files: {', '.join(missing_files)}")
     
     return results
 
