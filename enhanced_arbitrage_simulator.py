@@ -266,7 +266,7 @@ class EnhancedEnergyArbitrageSimulator:
         return pred_df, overall_mape
     
     def calculate_enhanced_arbitrage_profits(self, predictions_df, day_start_idx, day_end_idx):
-        """Calculate arbitrage profits using real predictions"""
+        """Calculate arbitrage profits based on Jiangsu market rules"""
         day_data = predictions_df.iloc[day_start_idx:day_end_idx]
         
         if len(day_data) == 0:
@@ -277,86 +277,116 @@ class EnhancedEnergyArbitrageSimulator:
         avg_predicted = day_data['predicted_price'].mean()
         avg_day_ahead = day_data['day_ahead_price'].mean()
         daily_mape = day_data['mape'].mean()
-        
-        # 1. TEMPORAL ARBITRAGE (Contract vs Spot)
-        # Available deviation after forecast uncertainty
-        forecast_buffer = daily_mape
-        available_deviation = max(0, self.max_deviation - forecast_buffer)
-        
-        # Price spread opportunity
-        contract_spot_spread = abs(self.base_price - avg_actual)
-        temporal_volume = self.daily_volume * available_deviation / 100
-        temporal_profit = temporal_volume * contract_spot_spread * 0.7
-        
-        # 2. AI-ENHANCED PREDICTION ARBITRAGE
-        # Use our model predictions to trade strategically
         prediction_accuracy = max(0.1, 1 - daily_mape / 100)
         
-        # Trade on prediction vs day-ahead differences
-        da_pred_spread = abs(avg_day_ahead - avg_predicted)
-        ai_arbitrage_volume = self.daily_volume * 0.8 * prediction_accuracy
-        ai_arbitrage_profit = ai_arbitrage_volume * da_pred_spread * 0.6
+        # Customer portfolio segmentation (based on SME feedback)
+        # 70% manufacturing in Southern Jiangsu, 30% mixed
+        manufacturing_volume = self.daily_volume * 0.7  # ±5% deviation limit
+        retail_volume = self.daily_volume * 0.3         # ±5% deviation limit
         
-        # 3. PEAK/OFF-PEAK OPTIMIZATION
-        peak_data = day_data[day_data['is_peak'] == 1]
-        offpeak_data = day_data[day_data['is_peak'] == 0]
+        # 1. CONTRACT DEVIATION ARBITRAGE (Updated per SME feedback)
+        # Over-consumption when spot < contract, under-consumption when spot > contract
+        contract_spot_spread = self.base_price - avg_actual
         
-        if len(peak_data) > 0 and len(offpeak_data) > 0:
-            peak_avg = peak_data['actual_price'].mean()
-            offpeak_avg = offpeak_data['actual_price'].mean()
-            peak_valley_spread = abs(peak_avg - offpeak_avg)
-            
-            # Our model helps predict optimal shifting
-            shift_efficiency = prediction_accuracy * 0.8
-            shift_volume = self.daily_volume * 0.3
-            tou_profit = shift_volume * peak_valley_spread * shift_efficiency
+        if contract_spot_spread > 0:  # Spot < Contract: Over-consume
+            # Increase consumption by 4.5% (within 5% limit for user side)
+            over_consumption_rate = 0.045
+            deviation_volume = self.daily_volume * over_consumption_rate
+            # Gain: pay spot price instead of contract price
+            temporal_profit = deviation_volume * contract_spot_spread * 0.85  # 85% capture rate
+        else:  # Spot > Contract: Under-consume
+            # Reduce consumption by 4.5% (demand response)
+            under_consumption_rate = 0.045
+            deviation_volume = self.daily_volume * under_consumption_rate
+            # Gain: avoid paying high spot price
+            temporal_profit = deviation_volume * abs(contract_spot_spread) * 0.75  # 75% capture rate
+        
+        # 2. DAY-AHEAD vs REAL-TIME POSITIONING (Replaces old "AI arbitrage")
+        # Based on prediction vs day-ahead price differences
+        da_rt_spread = avg_predicted - avg_day_ahead
+        
+        if abs(da_rt_spread) > 20:  # Only trade on significant spreads (>¥20/MWh)
+            if da_rt_spread > 0:  # Predicted RT > DA: Buy less in DA, more in RT
+                positioning_volume = self.daily_volume * 0.03 * prediction_accuracy
+                positioning_profit = positioning_volume * abs(da_rt_spread) * 0.6
+            else:  # Predicted RT < DA: Buy more in DA, less in RT
+                positioning_volume = self.daily_volume * 0.05 * prediction_accuracy
+                positioning_profit = positioning_volume * abs(da_rt_spread) * 0.7
         else:
-            tou_profit = 0
+            positioning_profit = 0
         
-        # 4. RENEWABLE ARBITRAGE
-        # Trade based on renewable generation forecasts
-        renewable_impact = day_data['renewable_forecast'].std()
-        if renewable_impact > 0:
-            renewable_volume = self.daily_volume * 0.4
-            renewable_spread = renewable_impact * 0.02  # 2% price impact per MW std
-            renewable_profit = renewable_volume * renewable_spread * prediction_accuracy
+        # 3. RENEWABLE FORECAST ARBITRAGE (Enhanced per SME feedback)
+        # Only trade when forecast accuracy provides competitive advantage
+        renewable_forecast_error = day_data['renewable_forecast'].std()
+        
+        if renewable_forecast_error > 50:  # Significant renewable volatility (>50MW std)
+            # Our competitive advantage: Better forecast vs market average
+            forecast_advantage = max(0, (25 - daily_mape) / 25)  # Advantage if MAPE < 25%
+            
+            if forecast_advantage > 0:
+                # Volume based on forecast confidence and market volatility
+                renewable_volume = min(self.daily_volume * 0.2, renewable_forecast_error * 2)
+                # Price impact: ¥50-100/MWh per 100MW forecast error (per SME)
+                price_impact = renewable_forecast_error * 0.75  # ¥0.75/MWh per MW std
+                renewable_profit = renewable_volume * price_impact * forecast_advantage
+            else:
+                renewable_profit = 0
         else:
             renewable_profit = 0
         
-        # 5. PENALTY COSTS
-        penalty_cost = 0
-        if daily_mape > self.max_deviation:
-            excess_error = daily_mape - self.max_deviation
-            penalty_volume = self.daily_volume * excess_error / 100
-            penalty_cost = penalty_volume * self.base_price * self.penalty_rate
+        # 4. CUSTOMER SEGMENTATION OPTIMIZATION (New strategy)
+        # Target Southern Jiangsu manufacturing (premium pricing)
+        # vs Northern Jiangsu procurement (cost advantage)
+        southern_premium = 25  # ¥25/MWh premium in Southern Jiangsu
+        northern_discount = 35  # ¥35/MWh discount in Northern Jiangsu
         
-        # 6. OPERATIONAL COSTS
-        # Reduced costs due to better predictions
-        base_operational_cost = self.daily_volume * daily_mape * 1.5
-        ai_cost_reduction = base_operational_cost * 0.3 * prediction_accuracy  # 30% reduction with good predictions
-        operational_cost = base_operational_cost - ai_cost_reduction
+        # Geographic arbitrage opportunity (15-25% cost savings per SME)
+        if prediction_accuracy > 0.7:  # Only when confident in forecasts
+            geographic_volume = manufacturing_volume * 0.4  # 40% of manufacturing load
+            geographic_spread = southern_premium + northern_discount
+            geographic_profit = geographic_volume * geographic_spread * 0.2  # 20% capture
+        else:
+            geographic_profit = 0
+        
+        # 5. PENALTY COSTS (Updated per SME rules)
+        penalty_cost = 0
+        
+        # User side penalties: ±5% limit, excess at 1.5× real-time price
+        if daily_mape > 5.0:
+            excess_deviation = daily_mape - 5.0
+            penalty_volume = self.daily_volume * excess_deviation / 100
+            penalty_cost = penalty_volume * avg_actual * 1.5
+        
+        # Additional operational costs for forecast errors
+        forecast_cost = self.daily_volume * daily_mape * 2.0
+        
+        # 6. OPERATIONAL EFFICIENCY GAINS
+        # Better forecasting reduces imbalance costs and improves positioning
+        baseline_operational_cost = self.daily_volume * 15  # ¥15/MWh baseline cost
+        efficiency_gain = baseline_operational_cost * prediction_accuracy * 0.3
+        operational_cost = baseline_operational_cost - efficiency_gain + forecast_cost
         
         # TOTALS
-        total_profit = temporal_profit + ai_arbitrage_profit + tou_profit + renewable_profit
+        total_profit = temporal_profit + positioning_profit + renewable_profit + geographic_profit
         total_costs = penalty_cost + operational_cost
         net_profit = total_profit - total_costs
         
         return {
             'temporal_arbitrage': temporal_profit,
-            'ai_arbitrage': ai_arbitrage_profit,
-            'tou_arbitrage': tou_profit,
+            'ai_arbitrage': positioning_profit,  # Keep name for UI compatibility
+            'tou_arbitrage': geographic_profit,   # Repurposed for geographic arbitrage
             'renewable_arbitrage': renewable_profit,
             'total_profit': total_profit,
             'penalty_cost': penalty_cost,
             'operational_cost': operational_cost,
             'total_costs': total_costs,
             'net_profit': net_profit,
-            'available_deviation': available_deviation,
+            'available_deviation': 5.0 - daily_mape,  # User side 5% limit
             'daily_mape': daily_mape,
             'prediction_accuracy': prediction_accuracy,
             'avg_actual_price': avg_actual,
             'avg_predicted_price': avg_predicted,
-            'contract_spot_spread': contract_spot_spread
+            'contract_spot_spread': abs(self.base_price - avg_actual)
         }
     
     def _zero_profits(self):
@@ -956,20 +986,20 @@ elif page == "💹 Arbitrage Simulation":
                 
                 # Strategy explanation
                 st.markdown("""
-                **🎯 Four Enhanced Arbitrage Strategies:**
+                **🎯 Four Jiangsu Market Arbitrage Strategies:**
                 
-                1. **⏰ Temporal Arbitrage**: Exploit differences between contract and spot prices
-                2. **📊 ML-Enhanced Arbitrage**: Use machine learning predictions to trade against day-ahead prices  
-                3. **📈 Peak/Off-peak Optimization**: Shift demand between peak and valley periods
-                4. **🌱 Renewable Arbitrage**: Trade based on renewable generation variability
+                1. **⏰ Contract Deviation Arbitrage**: Over/under-consume within ±5% limits based on contract vs spot spreads
+                2. **📊 Day-ahead vs Real-time Positioning**: Use ML forecasts to optimize market positioning  
+                3. **🏭 Geographic Customer Optimization**: Target Southern Jiangsu manufacturing premium vs Northern procurement
+                4. **🌱 Renewable Forecast Arbitrage**: Competitive advantage through superior renewable generation forecasting
                 """)
                 
                 # Strategy breakdown chart
                 strategy_totals = {
-                    'Temporal Arbitrage': df['temporal_arbitrage'].sum(),
-                    'ML-Enhanced Arbitrage': df['ai_arbitrage'].sum(),
-                    'Peak/Off-peak Optimization': df['tou_arbitrage'].sum(),
-                    'Renewable Arbitrage': df['renewable_arbitrage'].sum()
+                    'Contract Deviation': df['temporal_arbitrage'].sum(),
+                    'DA vs RT Positioning': df['ai_arbitrage'].sum(),
+                    'Geographic Optimization': df['tou_arbitrage'].sum(),
+                    'Renewable Forecasting': df['renewable_arbitrage'].sum()
                 }
                 
                 strategy_df = pd.DataFrame(list(strategy_totals.items()), 
@@ -982,12 +1012,12 @@ elif page == "💹 Arbitrage Simulation":
                                  color_continuous_scale='Viridis')
                     
                     # Add annotations with key equations
-                    fig1.add_annotation(x=0, y=strategy_totals['Temporal Arbitrage']/2, 
-                                       text="P₁ = V₁ × |P_contract - P_spot| × η₁<br>V₁ = DailyVolume × (3% - MAPE)/100",
+                    fig1.add_annotation(x=0, y=strategy_totals['Contract Deviation']/2, 
+                                       text="P₁ = V₁ × |P_contract - P_spot| × η₁<br>V₁ = DailyVolume × 4.5% (within ±5% limit)",
                                        showarrow=True, arrowhead=2, font=dict(size=10))
                     
-                    fig1.add_annotation(x=1, y=strategy_totals['ML-Enhanced Arbitrage']/2,
-                                       text="P₂ = V₂ × |P_predicted - P_DA| × η₂<br>V₂ = DailyVolume × 0.8 × (1-MAPE/100)",
+                    fig1.add_annotation(x=1, y=strategy_totals['DA vs RT Positioning']/2,
+                                       text="P₂ = V₂ × |P_predicted - P_DA| × η₂<br>V₂ = DailyVolume × 3-5% × Accuracy",
                                        showarrow=True, arrowhead=2, font=dict(size=10))
                     
                     fig1.update_layout(height=500)
@@ -1242,37 +1272,45 @@ elif page == "📚 Complete Methodology":
     
     with method_tab3:
         st.markdown("""
-        ## 💹 **Arbitrage Strategy Methodology**
+        ## 💹 **Jiangsu Market Arbitrage Methodology**
         
-        ### **1. Temporal Arbitrage:**
+        ### **1. Contract Deviation Arbitrage:**
         ```
-        Profit = Volume × |Contract_Price - Spot_Price| × 70%
-        Volume = Daily_Volume × (3% - MAPE) / 100
-        ```
+        Over-consumption (Spot < Contract):
+        Profit = Volume × (Contract_Price - Spot_Price) × 85%
+        Volume = Daily_Volume × 4.5% (within ±5% user limit)
         
-        ### **2. AI-Enhanced Arbitrage:**
-        ```
-        Profit = Volume × |AI_Predicted - Day_Ahead| × 60%
-        Volume = Daily_Volume × 0.8 × (1 - MAPE/100)
-        ```
-        
-        ### **3. Peak/Off-peak Optimization:**
-        ```
-        Profit = Shiftable_Volume × Peak_Valley_Spread × Efficiency
-        Shiftable_Volume = Daily_Volume × 30%
-        Efficiency = Prediction_Accuracy × 80%
+        Under-consumption (Spot > Contract):
+        Profit = Volume × (Spot_Price - Contract_Price) × 75%
+        Volume = Daily_Volume × 4.5% (demand response)
         ```
         
-        ### **4. Renewable Arbitrage:**
+        ### **2. Day-ahead vs Real-time Positioning:**
         ```
-        Profit = Volume × Price_Impact × Prediction_Accuracy
-        Price_Impact = Renewable_Std × 2%
-        Volume = Daily_Volume × 40%
+        If |Predicted_RT - Day_Ahead| > ¥20/MWh:
+        Profit = Volume × |Predicted_RT - Day_Ahead| × 60-70%
+        Volume = Daily_Volume × 3-5% × Prediction_Accuracy
         ```
         
-        ### **Risk Management:**
-        - **3% regulatory deviation limit**
-        - **10% penalty rate on violations**
+        ### **3. Geographic Customer Optimization:**
+        ```
+        Southern Jiangsu Premium: ¥25/MWh
+        Northern Jiangsu Discount: ¥35/MWh
+        Profit = Volume × (¥25 + ¥35) × 20% capture
+        Volume = Manufacturing_Volume × 40%
+        ```
+        
+        ### **4. Renewable Forecast Arbitrage:**
+        ```
+        If Renewable_Std > 50MW and MAPE < 25%:
+        Forecast_Advantage = (25 - MAPE) / 25
+        Price_Impact = Renewable_Std × ¥0.75/MWh per MW
+        Profit = Volume × Price_Impact × Forecast_Advantage
+        ```
+        
+        ### **Risk Management (Jiangsu Rules):**
+        - **±5% user side deviation limit**
+        - **1.5× real-time price penalty on excess**
         - **MAPE-based volume scaling**
         - **Conservative capture rate assumptions**
         """)
