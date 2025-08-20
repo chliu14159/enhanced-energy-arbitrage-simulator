@@ -1182,13 +1182,33 @@ elif page == "💹 Arbitrage Simulation":
                     
                     summary_df = pd.DataFrame(level_summary)
                     
-                    # Color code the table
-                    st.dataframe(
-                        summary_df.style.format({
-                            'Usage %': '{:.1f}%'
-                        }).background_gradient(subset=['Total Profit (¥k)'], cmap='RdYlGn'),
-                        use_container_width=True
-                    )
+                    # Display the table with enhanced formatting
+                    st.dataframe(summary_df, use_container_width=True)
+                    
+                    # Add color-coded metrics below the table
+                    st.markdown("**📊 Performance Highlights:**")
+                    cols = st.columns(5)
+                    
+                    for i, (_, row) in enumerate(summary_df.iterrows()):
+                        with cols[i]:
+                            profit = float(row['Total Profit (¥k)'].replace('k', ''))
+                            usage = float(row['Usage %'].replace('%', ''))
+                            
+                            # Color code based on performance
+                            if profit > 50:
+                                color = "🟢"  # Green for high profit
+                            elif profit > 20:
+                                color = "🟡"  # Yellow for medium profit
+                            elif profit > 0:
+                                color = "🟠"  # Orange for low profit
+                            else:
+                                color = "⚪"  # White for no profit
+                                
+                            st.metric(
+                                f"{color} Level {row['Level']}",
+                                f"¥{profit:.1f}k",
+                                delta=f"{usage:.1f}% used"
+                            )
                     
                     # Strategy explanation
                     st.markdown("""
