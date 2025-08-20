@@ -284,22 +284,19 @@ class EnhancedEnergyArbitrageSimulator:
         manufacturing_volume = self.daily_volume * 0.7  # ±5% deviation limit
         retail_volume = self.daily_volume * 0.3         # ±5% deviation limit
         
-        # 1. CONTRACT DEVIATION ARBITRAGE (Updated per SME feedback)
-        # Over-consumption when spot < contract, under-consumption when spot > contract
+        # 1. CONTRACT DEVIATION ARBITRAGE - 5-LEVEL STRATEGY (Updated per improvement plan)
+        # Calculate optimal deviation percentage based on spread magnitude and risk appetite
         contract_spot_spread = self.base_price - avg_actual
         
-        if contract_spot_spread > 0:  # Spot < Contract: Over-consume
-            # Increase consumption by 4.5% (within 5% limit for user side)
-            over_consumption_rate = 0.045
-            deviation_volume = self.daily_volume * over_consumption_rate
-            # Gain: pay spot price instead of contract price
-            temporal_profit = deviation_volume * contract_spot_spread * 0.85  # 85% capture rate
-        else:  # Spot > Contract: Under-consume
-            # Reduce consumption by 4.5% (demand response)
-            under_consumption_rate = 0.045
-            deviation_volume = self.daily_volume * under_consumption_rate
-            # Gain: avoid paying high spot price
-            temporal_profit = deviation_volume * abs(contract_spot_spread) * 0.75  # 75% capture rate
+        # 5-Level Deviation Strategy with progressive risk/return profiles
+        deviation_strategies = self._calculate_5_level_deviation_strategy(contract_spot_spread)
+        
+        # Select optimal strategy based on spread magnitude
+        selected_strategy = self._select_optimal_deviation_level(contract_spot_spread, deviation_strategies)
+        
+        temporal_profit = selected_strategy['profit']
+        deviation_level = selected_strategy['level']
+        deviation_percentage = selected_strategy['percentage']
         
         # 2. DAY-AHEAD vs REAL-TIME POSITIONING (Replaces old "AI arbitrage")
         # Based on prediction vs day-ahead price differences
@@ -386,8 +383,91 @@ class EnhancedEnergyArbitrageSimulator:
             'prediction_accuracy': prediction_accuracy,
             'avg_actual_price': avg_actual,
             'avg_predicted_price': avg_predicted,
-            'contract_spot_spread': abs(self.base_price - avg_actual)
+            'contract_spot_spread': abs(self.base_price - avg_actual),
+            # NEW: 5-Level Deviation Strategy Information
+            'deviation_level': deviation_level,
+            'deviation_percentage': deviation_percentage,
+            'deviation_risk_level': selected_strategy['risk_level'],
+            'deviation_certainty': selected_strategy['certainty'],
+            'deviation_volume': selected_strategy['volume'],
+            'all_deviation_strategies': deviation_strategies  # For detailed analysis
         }
+    
+    def _calculate_5_level_deviation_strategy(self, contract_spot_spread):
+        """
+        Calculate profit for all 5 deviation levels (1% to 5%)
+        Returns dictionary with profit calculations for each level
+        """
+        spread_magnitude = abs(contract_spot_spread)
+        is_over_consumption = contract_spot_spread > 0  # Spot < Contract
+        
+        strategies = {}
+        
+        for level in range(1, 6):  # 1% to 5%
+            percentage = level / 100.0  # Convert to decimal
+            deviation_volume = self.daily_volume * percentage
+            
+            if is_over_consumption:
+                # Over-consumption: pay spot instead of contract
+                # Capture rates decrease with higher risk levels
+                capture_rates = {1: 0.90, 2: 0.85, 3: 0.80, 4: 0.75, 5: 0.70}
+                profit = deviation_volume * spread_magnitude * capture_rates[level]
+            else:
+                # Under-consumption: avoid paying high spot prices
+                # Capture rates for demand response
+                capture_rates = {1: 0.85, 2: 0.80, 3: 0.75, 4: 0.70, 5: 0.65}
+                profit = deviation_volume * spread_magnitude * capture_rates[level]
+            
+            # Risk classifications
+            risk_levels = {
+                1: "Conservative", 2: "Moderate-Conservative", 3: "Moderate", 
+                4: "Moderate-Aggressive", 5: "Maximum Allowable"
+            }
+            
+            strategies[level] = {
+                'level': level,
+                'percentage': percentage * 100,  # For display
+                'volume': deviation_volume,
+                'profit': profit,
+                'risk_level': risk_levels[level],
+                'capture_rate': capture_rates[level],
+                'spread_required': 50 * level,  # Minimum spread for activation
+                'certainty': ["High", "Good", "Moderate", "Higher Risk", "Maximum Risk"][level-1]
+            }
+        
+        return strategies
+    
+    def _select_optimal_deviation_level(self, contract_spot_spread, deviation_strategies):
+        """
+        Select optimal deviation level based on spread magnitude and risk management
+        """
+        spread_magnitude = abs(contract_spot_spread)
+        
+        # Selection logic based on spread magnitude
+        if spread_magnitude >= 300:  # Very large spread (>¥300/MWh)
+            selected_level = 5  # Maximum allowable
+        elif spread_magnitude >= 200:  # Large spread (>¥200/MWh) 
+            selected_level = 4  # Moderate-aggressive
+        elif spread_magnitude >= 150:  # Significant spread (>¥150/MWh)
+            selected_level = 3  # Moderate
+        elif spread_magnitude >= 100:  # Medium spread (>¥100/MWh)
+            selected_level = 2  # Moderate-conservative
+        elif spread_magnitude >= 50:   # Small spread (>¥50/MWh)
+            selected_level = 1  # Conservative
+        else:
+            # Spread too small, no arbitrage
+            return {
+                'level': 0,
+                'percentage': 0,
+                'volume': 0,
+                'profit': 0,
+                'risk_level': "No Trade",
+                'capture_rate': 0,
+                'spread_required': 50,
+                'certainty': "Spread too small"
+            }
+        
+        return deviation_strategies[selected_level]
     
     def _zero_profits(self):
         """Return zero profits structure"""
@@ -984,19 +1064,158 @@ elif page == "💹 Arbitrage Simulation":
             with tab1:
                 st.subheader("💹 Enhanced Arbitrage Strategy Performance")
                 
+                # 🔥 NEW: 5-Level Deviation Strategy Showcase
+                st.markdown("""
+                <div style="background: linear-gradient(90deg, #ff6b6b, #4ecdc4); color: white; 
+                            padding: 1rem; border-radius: 0.5rem; margin: 1rem 0;">
+                <h3>🎯 NEW: 5-Level Deviation Strategy (1% - 5%)</h3>
+                <p>Advanced risk-graduated approach with optimal deviation selection based on spread magnitude</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Display deviation strategy analysis
+                if 'deviation_level' in df.columns and not df.empty:
+                    st.subheader("📊 5-Level Deviation Strategy Performance")
+                    
+                    # Create columns for strategy overview
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        avg_deviation_level = df['deviation_level'].mean()
+                        st.metric("Average Deviation Level", f"Level {avg_deviation_level:.1f}", 
+                                 delta=f"{df['deviation_percentage'].mean():.1f}% volume")
+                    
+                    with col2:
+                        most_common_level = df['deviation_level'].mode().iloc[0] if not df['deviation_level'].mode().empty else 0
+                        if most_common_level > 0:
+                            level_count = (df['deviation_level'] == most_common_level).sum()
+                            st.metric("Most Used Level", f"Level {int(most_common_level)}", 
+                                     delta=f"Used {level_count}/{len(df)} days")
+                        else:
+                            st.metric("Most Used Level", "No Trades", delta="Spreads too small")
+                    
+                    with col3:
+                        total_deviation_profit = df['temporal_arbitrage'].sum()
+                        if 'deviation_volume' in df.columns:
+                            avg_margin = total_deviation_profit / df['deviation_volume'].sum() if df['deviation_volume'].sum() > 0 else 0
+                            st.metric("Avg Margin per MWh", f"¥{avg_margin:.1f}/MWh", 
+                                     delta=f"Total: ¥{total_deviation_profit/1000:.1f}k")
+                        else:
+                            st.metric("Total Deviation Profit", f"¥{total_deviation_profit/1000:.1f}k")
+                    
+                    # 5-Level Strategy Visualization
+                    fig_deviation = go.Figure()
+                    
+                    # Create a comprehensive deviation strategy chart
+                    for day_num, (day_idx, row) in enumerate(df.iterrows()):
+                        if 'all_deviation_strategies' in row and row['all_deviation_strategies']:
+                            strategies = row['all_deviation_strategies']
+                            for level, strategy_data in strategies.items():
+                                fig_deviation.add_trace(go.Scatter(
+                                    x=[day_num] * 5,  # Repeat for each level
+                                    y=[level],
+                                    mode='markers',
+                                    marker=dict(
+                                        size=strategy_data['profit'] / 1000,  # Size by profit
+                                        color=level,
+                                        colorscale='RdYlGn',
+                                        showscale=True,
+                                        colorbar=dict(title="Deviation Level"),
+                                        line=dict(width=2, color='white')
+                                    ),
+                                    text=f"Level {level}: {strategy_data['risk_level']}<br>" +
+                                         f"Profit: ¥{strategy_data['profit']:,.0f}<br>" +
+                                         f"Volume: {strategy_data['percentage']:.1f}%<br>" +
+                                         f"Certainty: {strategy_data['certainty']}",
+                                    hovertemplate='%{text}<extra></extra>',
+                                    name=f"Day {day_num+1}",
+                                    showlegend=False
+                                ))
+                    
+                    # Add selected strategy highlighting
+                    selected_levels = df['deviation_level'].tolist()
+                    selected_profits = df['temporal_arbitrage'].tolist()
+                    
+                    fig_deviation.add_trace(go.Scatter(
+                        x=list(range(len(df))),
+                        y=selected_levels,
+                        mode='markers+lines',
+                        marker=dict(size=15, color='red', symbol='star'),
+                        line=dict(color='red', width=3),
+                        name='Selected Strategy',
+                        text=[f"Day {i+1}: Level {int(level)}<br>Profit: ¥{profit:,.0f}" 
+                              for i, (level, profit) in enumerate(zip(selected_levels, selected_profits))],
+                        hovertemplate='%{text}<extra></extra>'
+                    ))
+                    
+                    fig_deviation.update_layout(
+                        title="5-Level Deviation Strategy Selection Over Time<br>" +
+                              "<sub>Red stars show actual selected levels, bubble size = profit potential</sub>",
+                        xaxis_title="Day",
+                        yaxis_title="Deviation Level (1=Conservative, 5=Maximum)",
+                        height=500,
+                        yaxis=dict(tickmode='linear', tick0=1, dtick=1, range=[0, 6])
+                    )
+                    
+                    st.plotly_chart(fig_deviation, use_container_width=True)
+                    
+                    # Strategy level breakdown table
+                    st.subheader("📋 5-Level Strategy Breakdown")
+                    
+                    # Create summary table of all 5 levels
+                    level_summary = []
+                    for level in range(1, 6):
+                        days_used = (df['deviation_level'] == level).sum()
+                        total_profit = df[df['deviation_level'] == level]['temporal_arbitrage'].sum()
+                        risk_levels = {1: "Conservative", 2: "Moderate-Conservative", 3: "Moderate", 
+                                     4: "Moderate-Aggressive", 5: "Maximum Allowable"}
+                        
+                        level_summary.append({
+                            'Level': level,
+                            'Percentage': f"{level}%",
+                            'Risk Profile': risk_levels[level],
+                            'Days Used': days_used,
+                            'Total Profit (¥k)': f"{total_profit/1000:.1f}",
+                            'Avg Daily Profit (¥k)': f"{total_profit/days_used/1000:.1f}" if days_used > 0 else "0.0",
+                            'Usage %': f"{days_used/len(df)*100:.1f}%"
+                        })
+                    
+                    summary_df = pd.DataFrame(level_summary)
+                    
+                    # Color code the table
+                    st.dataframe(
+                        summary_df.style.format({
+                            'Usage %': '{:.1f}%'
+                        }).background_gradient(subset=['Total Profit (¥k)'], cmap='RdYlGn'),
+                        use_container_width=True
+                    )
+                    
+                    # Strategy explanation
+                    st.markdown("""
+                    **🎯 5-Level Strategy Logic:**
+                    - **Level 1 (1%)**: Conservative - Used for small spreads (¥50-100/MWh), high certainty
+                    - **Level 2 (2%)**: Moderate-Conservative - Medium spreads (¥100-150/MWh), good certainty  
+                    - **Level 3 (3%)**: Moderate - Significant spreads (¥150-200/MWh), moderate risk
+                    - **Level 4 (4%)**: Moderate-Aggressive - Large spreads (¥200-300/MWh), higher risk
+                    - **Level 5 (5%)**: Maximum Allowable - Very large spreads (>¥300/MWh), maximum risk
+                    
+                    **🔧 Automatic Selection**: System automatically selects optimal level based on spread magnitude and risk management
+                    """)
+                
                 # Strategy explanation
+                st.subheader("📚 Complete Strategy Overview")
                 st.markdown("""
                 **🎯 Four Jiangsu Market Arbitrage Strategies:**
                 
-                1. **⏰ Contract Deviation Arbitrage**: Over/under-consume within ±5% limits based on contract vs spot spreads
+                1. **⏰ Contract Deviation Arbitrage**: 5-level approach (1%-5%) with automatic optimal selection
                 2. **📊 Day-ahead vs Real-time Positioning**: Use ML forecasts to optimize market positioning  
                 3. **🏭 Geographic Customer Optimization**: Target Southern Jiangsu manufacturing premium vs Northern procurement
                 4. **🌱 Renewable Forecast Arbitrage**: Competitive advantage through superior renewable generation forecasting
                 """)
                 
-                # Strategy breakdown chart
+                # Strategy breakdown chart (existing code)
                 strategy_totals = {
-                    'Contract Deviation': df['temporal_arbitrage'].sum(),
+                    'Contract Deviation (5-Level)': df['temporal_arbitrage'].sum(),
                     'DA vs RT Positioning': df['ai_arbitrage'].sum(),
                     'Geographic Optimization': df['tou_arbitrage'].sum(),
                     'Renewable Forecasting': df['renewable_arbitrage'].sum()
@@ -1007,13 +1226,13 @@ elif page == "💹 Arbitrage Simulation":
                 
                 if not strategy_df.empty:
                     fig1 = px.bar(strategy_df, x='Strategy', y='Total_Profit',
-                                 title="Profit by Arbitrage Strategy (with Mathematical Formulations)",
+                                 title="Profit by Arbitrage Strategy - Enhanced with 5-Level Deviation",
                                  color='Total_Profit',
                                  color_continuous_scale='Viridis')
                     
-                    # Add annotations with key equations
-                    fig1.add_annotation(x=0, y=strategy_totals['Contract Deviation']/2, 
-                                       text="P₁ = V₁ × |P_contract - P_spot| × η₁<br>V₁ = DailyVolume × 4.5% (within ±5% limit)",
+                    # Update annotations for 5-level strategy
+                    fig1.add_annotation(x=0, y=strategy_totals['Contract Deviation (5-Level)']/2, 
+                                       text="P₁ = V₁ × |P_contract - P_spot| × η₁<br>V₁ = DailyVolume × Level% (1-5% auto-selected)",
                                        showarrow=True, arrowhead=2, font=dict(size=10))
                     
                     fig1.add_annotation(x=1, y=strategy_totals['DA vs RT Positioning']/2,

@@ -15,92 +15,61 @@ This document outlines specific arbitrage opportunities within the Jiangsu elect
 The Jiangsu market uses a "Contract for Differences" settlement model where:
 - Medium/long-term contracts settle at contracted prices
 - Deviations from contracts settle at spot market prices
-- ±3% deviation tolerance before penalty fees apply
+- ±5% deviation tolerance for user-side scheduling before penalty fees apply
 
 ### Arbitrage Opportunity
 **Price Spread Exploitation**: When spot prices diverge significantly from contract prices, controlled deviations generate profit.
 
-### Implementation Strategy
+### Implementation Strategy - Variable Deviation Analysis
 
-#### A. Over-Consumption Arbitrage (Spot < Contract)
-**Scenario**: Day-ahead spot price ¥350/MWh, your contract price ¥450/MWh
-**Action**: Increase customer sales by 2.9% (stay within tolerance)
-**Settlement**: 
-- Contract volume: Pay ¥450/MWh
-- Over-consumption: Pay ¥350/MWh (spot price)
-- **Profit**: ¥100/MWh on additional volume
+#### Deviation Percentage Strategy (1% to 5% Analysis)
 
-#### B. Under-Consumption Arbitrage (Spot > Contract)
-**Scenario**: Real-time price spikes to ¥600/MWh, contract at ¥400/MWh
-**Action**: Reduce sales by 2.9%, trigger demand response
-**Settlement**: 
-- Sell contracted volume at retail markup
-- Avoid paying ¥600/MWh spot price
-- **Profit**: ¥200/MWh avoided cost + demand response fees
+**1% Deviation Strategy (Conservative)**
+- **Scenario**: Day-ahead spot ¥350/MWh, contract ¥450/MWh
+- **Action**: Increase customer sales by 1.0%
+- **Risk**: Minimal regulatory exposure
+- **Expected Profit**: ¥100/MWh × 1% portfolio = Low volume, high certainty
 
-### Risk Management
-- **Deviation Monitoring**: Real-time tracking to stay within ±3% bands
-- **Customer Flexibility**: Pre-negotiated demand response agreements
-- **Penalty Avoidance**: Automated cutoff at 2.8% deviation
+**2% Deviation Strategy (Moderate-Conservative)**  
+- **Scenario**: Real-time price ¥600/MWh, contract ¥400/MWh
+- **Action**: Reduce sales by 2.0%, trigger demand response
+- **Risk**: Low regulatory exposure
+- **Expected Profit**: ¥200/MWh × 2% portfolio = Medium volume, good certainty
 
-### Expected Returns
-- **Frequency**: 15-20 profitable opportunities per month
-- **Volume**: 2-3% of total portfolio per opportunity
-- **Profit Margin**: ¥50-200/MWh on arbitraged volume
-- **Annual Impact**: 3-5% additional EBITDA
+**3% Deviation Strategy (Moderate)**
+- **Scenario**: Significant spread ¥500/MWh vs ¥350/MWh contract
+- **Action**: Increase sales by 3.0% during favorable spreads
+- **Risk**: Moderate regulatory exposure
+- **Expected Profit**: ¥150/MWh × 3% portfolio = Higher volume, moderate risk
 
----
+**4% Deviation Strategy (Moderate-Aggressive)**
+- **Scenario**: Extreme market conditions with >¥200/MWh spreads
+- **Action**: Deviation of 4.0% during high-confidence signals
+- **Risk**: High regulatory exposure, requires careful monitoring
+- **Expected Profit**: ¥250/MWh × 4% portfolio = High volume, higher risk
 
-## Strategy 2: Zonal Price Arbitrage - Geographic Optimization
+**5% Deviation Strategy (Maximum Allowable)**
+- **Scenario**: Exceptional market opportunities >¥300/MWh spreads
+- **Action**: Maximum 5.0% deviation at regulatory limit
+- **Risk**: Maximum regulatory exposure, penalty threshold
+- **Expected Profit**: ¥300/MWh × 5% portfolio = Maximum volume, maximum risk
 
-### Market Structure
-Jiangsu divides into price zones during transmission congestion:
-- **South Jiangsu**: Industrial region, higher demand, higher prices
-- **North Jiangsu**: Rural region, lower demand, lower prices
-- **Provincial Average**: Weighted average of zonal prices
+### Risk Management Framework
+- **Graduated Response**: Scale deviation percentage based on spread magnitude
+- **Real-time Monitoring**: Continuous tracking to stay within 5% regulatory limit
+- **Customer Flexibility**: Pre-negotiated demand response agreements for all deviation levels
+- **Automated Controls**: Progressive cutoffs at 4.5%, 4.8%, and hard stop at 4.9%
+- **Monthly Reset**: Deviation calculations reset monthly to maintain compliance
 
-### Arbitrage Mechanism
-**Geographic Spread Trading**: Buy electricity in low-price zones, serve customers in high-price zones.
-
-### Price Analysis
-**Historical Data (Based on Market Structure)**:
-- **Average Zonal Spread**: ¥20-50/MWh between North and South
-- **Peak Spread Events**: Up to ¥100-150/MWh during constraints
-- **Frequency**: 40-60% of trading days show meaningful spreads
-
-### Implementation Strategy
-
-#### A. Strategic Customer Acquisition
-**South Jiangsu Focus**: 
-- Target: Manufacturing plants, commercial complexes
-- Premium: Can charge higher rates due to local high prices
-- Volume: 70% of customer base
-
-**North Jiangsu Procurement**:
-- Strategy: Bid aggressively in North zone day-ahead market
-- Advantage: Lower competition, surplus generation
-- Cost Saving: 15-25% below provincial average
-
-#### B. Dynamic Zone Optimization
-**Daily Operations**:
-1. **Morning**: Analyze congestion forecasts and zonal price predictions
-2. **10:30 AM**: Submit zone-specific bids for day-ahead market
-3. **Real-time**: Monitor zonal spread evolution and adjust next-day strategy
-
-### Technology Requirements
-- **GIS Mapping**: Customer location to optimal procurement zone
-- **Transmission Analysis**: Predict congestion patterns
-- **Automated Bidding**: Zone-specific bid optimization
-
-### Expected Returns
-- **Base Spread Capture**: ¥25/MWh average
-- **Peak Event Capture**: ¥75/MWh during 10-15 high-spread days/month
-- **Portfolio Impact**: 8-12% improvement in procurement costs
-- **Annual Profit**: ¥15-25M on 1000 GWh portfolio
+### Expected Returns by Strategy Level
+- **1-2% Deviations**: 10-15 opportunities/month, ¥30-80/MWh profit margin
+- **3-4% Deviations**: 5-8 opportunities/month, ¥100-200/MWh profit margin  
+- **5% Deviations**: 2-3 opportunities/month, ¥200-400/MWh profit margin
+- **Annual Impact**: 4-8% additional EBITDA depending on deviation strategy mix
 
 ---
 
-## Strategy 3: Renewable Energy Forecast Arbitrage
+## Strategy 2: Renewable Energy Forecast Arbitrage
 
 ### Market Inefficiency
 **Forecasting Gaps**: Significant variance between official renewable forecasts and actual output
@@ -162,7 +131,7 @@ Jiangsu divides into price zones during transmission congestion:
 
 ---
 
-## Strategy 4: Coal Price Correlation Arbitrage
+## Strategy 3: Coal Price Correlation Arbitrage
 
 ### Market Mechanism
 **Factor 'K' Dependency**: Generator deviation settlement prices adjust with coal costs
@@ -214,7 +183,7 @@ Jiangsu divides into price zones during transmission congestion:
 
 ---
 
-## Strategy 5: Intraday Time-of-Use Arbitrage
+## Strategy 4: Intraday Time-of-Use Arbitrage
 
 ### Market Structure
 **96-Point Pricing**: Daily electricity prices set for 15-minute intervals (96 periods)
@@ -269,7 +238,7 @@ Jiangsu divides into price zones during transmission congestion:
 
 ---
 
-## Strategy 6: Deviation Settlement Optimization
+## Strategy 5: Deviation Settlement Optimization
 
 ### Regulatory Framework
 **Deviation Tolerance**: ±3% monthly deviation without penalty
