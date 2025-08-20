@@ -17,7 +17,16 @@ A **comprehensive data science platform** that tells the complete story of energ
 
 ## 🚀 **Live Demo**
 
-**Try it now:** [Jiangsu Energy Analysis Platform](https://your-app-url.streamlit.app) *(Link will be updated after deployment)*
+**Try it now:** [Enhanced Energy Arbitrage Simulator](https://enhanced-energy-arbitrage-simulator.streamlit.app) 
+
+### 🎯 **NEW: 5-Level Deviation Strategy (August 2025)**
+- **Level 1 (1%)**: Conservative approach for small spreads (¥50-100/MWh)
+- **Level 2 (2%)**: Moderate-conservative for medium spreads (¥100-150/MWh)  
+- **Level 3 (3%)**: Moderate risk for significant spreads (¥150-200/MWh)
+- **Level 4 (4%)**: Moderate-aggressive for large spreads (¥200-300/MWh)
+- **Level 5 (5%)**: Maximum allowable for very large spreads (>¥300/MWh)
+
+**🚀 Automatic Optimal Selection**: System intelligently selects the best deviation level based on spread magnitude and risk management principles.
 
 ## 🧭 **Platform Navigation**
 
