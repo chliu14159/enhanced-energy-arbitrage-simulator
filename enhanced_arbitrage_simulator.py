@@ -1352,12 +1352,16 @@ elif page == "💹 Arbitrage Simulation":
                     with col2:
                         fig6 = px.scatter(sample_pred, x='predicted_price', y='actual_price',
                                          title="Predicted vs Actual Prices",
-                                         trendline="ols")
-                        # Add perfect prediction line
+                                         color_discrete_sequence=['blue'])
+                        # Add perfect prediction line (y=x)
                         min_price = min(sample_pred['predicted_price'].min(), sample_pred['actual_price'].min())
                         max_price = max(sample_pred['predicted_price'].max(), sample_pred['actual_price'].max())
                         fig6.add_shape(type="line", x0=min_price, y0=min_price, x1=max_price, y1=max_price,
-                                      line=dict(color="red", dash="dash"))
+                                      line=dict(color="red", dash="dash", width=2))
+                        fig6.add_annotation(x=max_price*0.8, y=max_price*0.2,
+                                          text="Perfect Prediction Line (y=x)",
+                                          showarrow=True, arrowhead=2, 
+                                          arrowcolor="red", font=dict(color="red"))
                         st.plotly_chart(fig6, use_container_width=True)
                 else:
                     st.info("No prediction data available")
