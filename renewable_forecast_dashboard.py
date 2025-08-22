@@ -42,12 +42,10 @@ class RenewableModelDashboard:
     def load_data(self):
         """Load data with bulletproof fallback to sample data"""
         try:
-            # Try multiple possible data paths with better path handling
+            # Try multiple possible data paths
             data_paths = [
                 "processed/wind_solar/wind_solar_data_cleaned_20250822_200203.parquet",
                 "processed/wind_solar/wind_solar_data_cleaned_20250822_200203.csv",
-                "/mount/src/enhanced-energy-arbitrage-simulator/processed/wind_solar/wind_solar_data_cleaned_20250822_200203.parquet",
-                "/mount/src/enhanced-energy-arbitrage-simulator/processed/wind_solar/wind_solar_data_cleaned_20250822_200203.csv",
                 "input/wind_and_solar/sample_data.csv"
             ]
             
@@ -58,19 +56,10 @@ class RenewableModelDashboard:
                             df = pd.read_parquet(data_path)
                         else:
                             df = pd.read_csv(data_path)
-                        
-                        # Convert datetime
                         df['datetime'] = pd.to_datetime(df['datetime'])
                         df = df.sort_values('datetime').reset_index(drop=True)
-                        
-                        # Check if this is the real wind/solar data format
-                        if 'measurement_type' in df.columns and 'value' in df.columns:
-                            st.success(f"✅ Real wind/solar data loaded from {data_path}")
-                            return self.process_real_data(df)
-                        else:
-                            st.success(f"✅ Sample data loaded from {data_path}")
-                            return df
-                            
+                        st.success(f"✅ Data loaded from {data_path}")
+                        return df
                     except Exception as e:
                         st.warning(f"Failed to load {data_path}: {e}")
                         continue
@@ -84,63 +73,16 @@ class RenewableModelDashboard:
             st.info("📊 Generating sample data for demonstration...")
             return self.generate_sample_data()
     
-    def process_real_data(self, df):
-        """Process the real wind/solar data format to dashboard format"""
-        try:
-            st.info("🔄 Processing real renewable energy data...")
-            
-            # Pivot the data to get wind and solar generation by station
-            processed_data = []
-            
-            # Group by datetime and station_id
-            for (dt, station), group in df.groupby(['datetime', 'station_id']):
-                record = {
-                    'datetime': dt,
-                    'station_id': station,
-                    'wind_generation': 0.0,
-                    'solar_generation': 0.0,
-                    'total_generation': 0.0
-                }
-                
-                # Extract wind and solar values
-                for _, row in group.iterrows():
-                    if row['type'] == 'wind' and row['measurement'] == 'wind_power':
-                        record['wind_generation'] = max(0, float(row['value']) if pd.notna(row['value']) else 0)
-                    elif row['type'] == 'solar' and row['measurement'] == 'solar_power':
-                        record['solar_generation'] = max(0, float(row['value']) if pd.notna(row['value']) else 0)
-                
-                # Calculate total
-                record['total_generation'] = record['wind_generation'] + record['solar_generation']
-                processed_data.append(record)
-            
-            processed_df = pd.DataFrame(processed_data)
-            
-            # Performance optimization: limit to last 1000 records for speed
-            if len(processed_df) > 1000:
-                processed_df = processed_df.tail(1000)
-                st.info(f"🚀 Using last 1000 records for optimal performance")
-            
-            st.success(f"✅ Processed {len(processed_df)} real data records")
-            st.write(f"📊 Data range: {processed_df['datetime'].min()} to {processed_df['datetime'].max()}")
-            st.write(f"🏭 Stations: {sorted(processed_df['station_id'].unique())}")
-            
-            return processed_df
-            
-        except Exception as e:
-            st.error(f"Error processing real data: {e}")
-            st.info("📊 Falling back to sample data...")
-            return self.generate_sample_data()
-    
     def generate_sample_data(self):
-        """Generate realistic sample renewable energy data - optimized for performance"""
+        """Generate realistic sample renewable energy data"""
         st.info("🔧 Creating sample renewable energy dataset...")
         
-        # Create 7 days of hourly data (instead of 30 days) for better performance
-        dates = pd.date_range(start='2025-08-15', end='2025-08-22', freq='h')
+        # Create 30 days of hourly data for comprehensive coverage
+        dates = pd.date_range(start='2025-06-01', end='2025-08-22', freq='h')  # Full date range
         np.random.seed(42)
         
         sample_data = []
-        stations = ['501974', '502633']  # Reduced to 2 stations for performance
+        stations = ['501974', '502633', '505519', '506445']
         
         for dt in dates:
             hour = dt.hour
@@ -169,7 +111,7 @@ class RenewableModelDashboard:
                 })
         
         df = pd.DataFrame(sample_data)
-        st.success(f"✅ Generated {len(df)} sample records for {len(stations)} stations (optimized for speed)")
+        st.success(f"✅ Generated {len(df)} sample records for {len(stations)} stations")
         return df
     
     @st.cache_data
@@ -252,21 +194,17 @@ class RenewableModelDashboard:
         }
 
     def generate_model_predictions(self, station_data, station_id):
-        """Generate synthetic predictions with bulletproof error handling - optimized for performance"""
+        """Generate synthetic predictions with bulletproof error handling"""
         try:
             np.random.seed(42)
-            
-            # Limit data size for performance
-            if len(station_data) > 500:
-                station_data = station_data.tail(500)  # Last 500 points only
-                st.info(f"🚀 Using last 500 data points for optimal performance")
             
             # Debug information
             st.write(f"🔍 Generating predictions for station {station_id}")
             st.write(f"📊 Station data shape: {station_data.shape}")
+            st.write(f"📋 Available columns: {list(station_data.columns)}")
             
             # Use last 20% of data for "testing"
-            split_idx = max(1, int(0.8 * len(station_data)))
+            split_idx = int(0.8 * len(station_data))
             test_data = station_data.iloc[split_idx:].copy()
             
             # Safely extract generation data using bulletproof method
@@ -299,7 +237,7 @@ class RenewableModelDashboard:
                 })
             
             predictions_df = pd.DataFrame(predictions)
-            st.success(f"✅ Generated {len(predictions_df)} predictions (optimized)")
+            st.success(f"✅ Generated {len(predictions_df)} predictions")
             return predictions_df
             
         except Exception as e:
@@ -420,63 +358,39 @@ class RenewableModelDashboard:
             st.write(predictions_df.head())
 
     def plot_station_overview(self, data):
-        """Plot overview of all stations with performance optimization"""
+        """Plot overview of all stations with error handling"""
         try:
             st.markdown("### 🏭 Station Overview")
-            
-            # Performance optimization: limit data size
-            if len(data) > 1000:
-                # Sample data for better performance
-                data_sample = data.sample(n=800, random_state=42).sort_values('datetime')
-                st.info(f"🚀 Showing 800 sampled points for optimal performance (from {len(data)} total)")
-                data = data_sample
             
             if len(data) == 0:
                 st.warning("No data available for station overview.")
                 return
             
-            # Calculate daily averages for each station - simplified approach
+            # Calculate daily averages for each station
             total_gen = self.safe_get_column(data, ['total_generation', 'total_gen', 'total'], 0.0)
-            wind_gen = self.safe_get_column(data, ['wind_generation', 'wind_gen', 'wind'], 0.0)
-            solar_gen = self.safe_get_column(data, ['solar_generation', 'solar_gen', 'solar'], 0.0)
             
-            # If total not available, calculate it
-            if (total_gen == 0.0).all():
-                total_gen = wind_gen + solar_gen
-            
-            # Add calculated columns safely
-            data_plot = data.copy()
-            data_plot['total_for_plot'] = total_gen
-            
-            # Create simple overview plot - hourly averages instead of daily for speed
-            hourly_data = data_plot.groupby([
-                data_plot['datetime'].dt.floor('4h'),  # 4-hour intervals for better performance
-                'station_id'
-            ]).agg({
-                'total_for_plot': 'mean'
+            # Create simple overview plot
+            daily_data = data.groupby([data['datetime'].dt.date, 'station_id']).agg({
+                'station_id': 'first'
             }).reset_index()
+            daily_data['total_generation'] = data.groupby([data['datetime'].dt.date, 'station_id'])[total_gen.name].mean().values
             
-            # Simple line plot
             fig = px.line(
-                hourly_data,
+                daily_data,
                 x='datetime',
-                y='total_for_plot',
+                y='total_generation',
                 color='station_id',
-                title='Total Generation by Station (4-hour averages)',
-                labels={'total_for_plot': 'Average Generation (MW)', 'datetime': 'Time'}
+                title='Daily Average Total Generation by Station',
+                labels={'total_generation': 'Average Generation (MW)', 'datetime': 'Date'}
             )
             
-            fig.update_layout(height=400, showlegend=True)
+            fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
             
         except Exception as e:
             st.error(f"Error creating station overview: {e}")
-            st.info("📊 Showing basic station statistics instead:")
-            try:
-                station_stats = data.groupby('station_id').size().reset_index(name='data_points')
-                st.dataframe(station_stats)
-            except:
-                st.write("Unable to display station overview")
+            st.write("Data sample:")
+            st.write(data.head())
 
     def display_model_info(self, metadata, station_id):
         """Display model information safely"""
