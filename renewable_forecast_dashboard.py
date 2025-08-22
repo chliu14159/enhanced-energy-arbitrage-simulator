@@ -173,24 +173,48 @@ class RenewableModelDashboard:
         """Generate synthetic predictions for demonstration"""
         np.random.seed(42)
         
+        # Debug information
+        st.write(f"🔍 Generating predictions for station {station_id}")
+        st.write(f"📊 Station data shape: {station_data.shape}")
+        st.write(f"📋 Available columns: {list(station_data.columns)}")
+        
         # Use last 20% of data for "testing"
         split_idx = int(0.8 * len(station_data))
         test_data = station_data.iloc[split_idx:].copy()
         
-        # Generate realistic predictions with some error
+        st.write(f"🧪 Test data shape: {test_data.shape}")
+        
+        # Generate realistic predictions with bulletproof error handling
         predictions = []
+        
+        # Define column mapping with fallbacks
+        columns_map = {
+            'wind_generation': ['wind_generation', 'wind_gen', 'wind'],
+            'solar_generation': ['solar_generation', 'solar_gen', 'solar'],
+            'total_generation': ['total_generation', 'total_gen', 'total']
+        }
+        
+        def safe_get_column_value(row, target_col, fallback=0.0):
+            """Safely get column value with multiple fallback options"""
+            if target_col in columns_map:
+                for col_name in columns_map[target_col]:
+                    if col_name in row.index:
+                        return float(row[col_name])
+            return float(fallback)
+        
         for idx, row in test_data.iterrows():
-            # Add some realistic prediction errors with safe column access
-            wind_actual = row.get('wind_generation', 0) if 'wind_generation' in row else 0
-            solar_actual = row.get('solar_generation', 0) if 'solar_generation' in row else 0
-            total_actual = row.get('total_generation', wind_actual + solar_actual) if 'total_generation' in row else wind_actual + solar_actual
+            # Safely extract values with multiple fallback options
+            wind_actual = safe_get_column_value(row, 'wind_generation', 0)
+            solar_actual = safe_get_column_value(row, 'solar_generation', 0)
+            total_actual = safe_get_column_value(row, 'total_generation', wind_actual + solar_actual)
             
+            # Generate predictions with some realistic error
             wind_pred = max(0, wind_actual + np.random.normal(0, 5))
             solar_pred = max(0, solar_actual + np.random.normal(0, 3))
             total_pred = wind_pred + solar_pred
             
             predictions.append({
-                'datetime': row['datetime'],
+                'datetime': row.get('datetime', pd.Timestamp.now()),
                 'actual_wind': wind_actual,
                 'predicted_wind': wind_pred,
                 'actual_solar': solar_actual,
@@ -202,7 +226,9 @@ class RenewableModelDashboard:
                 'total_error': abs(total_pred - total_actual)
             })
         
-        return pd.DataFrame(predictions)
+        predictions_df = pd.DataFrame(predictions)
+        st.write(f"✅ Generated {len(predictions_df)} predictions")
+        return predictions_df
 
     def calculate_metrics(self, predictions_df):
         """Calculate performance metrics"""
@@ -240,7 +266,7 @@ class RenewableModelDashboard:
         # Create subplot with secondary y-axis for errors
         fig = make_subplots(
             rows=2, cols=1,
-            shared_xaxis=True,
+            shared_xaxes=True,
             subplot_titles=('Generation Forecast vs Actual', 'Prediction Errors'),
             vertical_spacing=0.1
         )
