@@ -180,26 +180,22 @@ class RenewableModelDashboard:
         # Generate realistic predictions with some error
         predictions = []
         for idx, row in test_data.iterrows():
-            # Add some realistic prediction errors with safe column access
-            wind_actual = row.get('wind_generation', 0) if 'wind_generation' in row else 0
-            solar_actual = row.get('solar_generation', 0) if 'solar_generation' in row else 0
-            total_actual = row.get('total_generation', wind_actual + solar_actual) if 'total_generation' in row else wind_actual + solar_actual
-            
-            wind_pred = max(0, wind_actual + np.random.normal(0, 5))
-            solar_pred = max(0, solar_actual + np.random.normal(0, 3))
+            # Add some realistic prediction errors
+            wind_pred = max(0, row['wind_generation'] + np.random.normal(0, 5))
+            solar_pred = max(0, row['solar_generation'] + np.random.normal(0, 3))
             total_pred = wind_pred + solar_pred
             
             predictions.append({
                 'datetime': row['datetime'],
-                'actual_wind': wind_actual,
+                'actual_wind': row['wind_generation'],
                 'predicted_wind': wind_pred,
-                'actual_solar': solar_actual,
+                'actual_solar': row['solar_generation'],
                 'predicted_solar': solar_pred,
-                'actual_total': total_actual,
+                'actual_total': row['total_generation'],
                 'predicted_total': total_pred,
-                'wind_error': abs(wind_pred - wind_actual),
-                'solar_error': abs(solar_pred - solar_actual),
-                'total_error': abs(total_pred - total_actual)
+                'wind_error': abs(wind_pred - row['wind_generation']),
+                'solar_error': abs(solar_pred - row['solar_generation']),
+                'total_error': abs(total_pred - row['total_generation'])
             })
         
         return pd.DataFrame(predictions)
@@ -413,20 +409,9 @@ def main():
             st.warning("No data available for selected filters.")
             return
         
-        # Debug information
-        st.sidebar.markdown("### 🔍 Debug Info")
-        st.sidebar.write(f"**Station Data Shape:** {station_data.shape}")
-        st.sidebar.write(f"**Columns:** {list(station_data.columns)}")
-        
         # Generate predictions and metrics
-        try:
-            predictions_df = dashboard.generate_model_predictions(station_data, selected_station)
-            metrics = dashboard.calculate_metrics(predictions_df)
-        except Exception as e:
-            st.error(f"Error generating predictions: {e}")
-            st.write("Station data sample:")
-            st.write(station_data.head())
-            return
+        predictions_df = dashboard.generate_model_predictions(station_data, selected_station)
+        metrics = dashboard.calculate_metrics(predictions_df)
         
         # Display forecast comparison
         dashboard.plot_forecast_comparison(predictions_df, selected_station)
