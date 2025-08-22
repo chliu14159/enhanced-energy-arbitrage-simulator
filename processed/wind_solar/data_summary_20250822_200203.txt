@@ -1,0 +1,26 @@
+Wind and Solar Data Processing Summary
+==================================================
+
+Processing Date: 2025-08-22 20:02:04.319863
+Total Records: 475,362
+Date Range: 2025-06-01 00:00:00 to 2025-08-22 16:39:00
+Unique Stations: 4
+
+Station Summary:
+  501974: 118,161 records
+  502633: 119,069 records
+  505519: 119,080 records
+  506445: 119,052 records
+
+Column Information:
+  datetime: datetime64[ns]
+  date: object
+  hour: int64
+  minute: int64
+  station_id: object
+  measurement_type: object
+  value: float64
+  status: float64
+  type: object
+  measurement: object
+  unit: object
