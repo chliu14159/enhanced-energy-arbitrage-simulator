@@ -42,10 +42,12 @@ class RenewableModelDashboard:
     def load_data(self):
         """Load data with bulletproof fallback to sample data"""
         try:
-            # Try multiple possible data paths
+            # Try multiple possible data paths with better path handling
             data_paths = [
                 "processed/wind_solar/wind_solar_data_cleaned_20250822_200203.parquet",
                 "processed/wind_solar/wind_solar_data_cleaned_20250822_200203.csv",
+                "/mount/src/enhanced-energy-arbitrage-simulator/processed/wind_solar/wind_solar_data_cleaned_20250822_200203.parquet",
+                "/mount/src/enhanced-energy-arbitrage-simulator/processed/wind_solar/wind_solar_data_cleaned_20250822_200203.csv",
                 "input/wind_and_solar/sample_data.csv"
             ]
             
@@ -56,10 +58,19 @@ class RenewableModelDashboard:
                             df = pd.read_parquet(data_path)
                         else:
                             df = pd.read_csv(data_path)
+                        
+                        # Convert datetime
                         df['datetime'] = pd.to_datetime(df['datetime'])
                         df = df.sort_values('datetime').reset_index(drop=True)
-                        st.success(f"✅ Data loaded from {data_path}")
-                        return df
+                        
+                        # Check if this is the real wind/solar data format
+                        if 'measurement_type' in df.columns and 'value' in df.columns:
+                            st.success(f"✅ Real wind/solar data loaded from {data_path}")
+                            return self.process_real_data(df)
+                        else:
+                            st.success(f"✅ Sample data loaded from {data_path}")
+                            return df
+                            
                     except Exception as e:
                         st.warning(f"Failed to load {data_path}: {e}")
                         continue
@@ -71,6 +82,53 @@ class RenewableModelDashboard:
         except Exception as e:
             st.error(f"Error loading data: {e}")
             st.info("📊 Generating sample data for demonstration...")
+            return self.generate_sample_data()
+    
+    def process_real_data(self, df):
+        """Process the real wind/solar data format to dashboard format"""
+        try:
+            st.info("🔄 Processing real renewable energy data...")
+            
+            # Pivot the data to get wind and solar generation by station
+            processed_data = []
+            
+            # Group by datetime and station_id
+            for (dt, station), group in df.groupby(['datetime', 'station_id']):
+                record = {
+                    'datetime': dt,
+                    'station_id': station,
+                    'wind_generation': 0.0,
+                    'solar_generation': 0.0,
+                    'total_generation': 0.0
+                }
+                
+                # Extract wind and solar values
+                for _, row in group.iterrows():
+                    if row['type'] == 'wind' and row['measurement'] == 'wind_power':
+                        record['wind_generation'] = max(0, float(row['value']) if pd.notna(row['value']) else 0)
+                    elif row['type'] == 'solar' and row['measurement'] == 'solar_power':
+                        record['solar_generation'] = max(0, float(row['value']) if pd.notna(row['value']) else 0)
+                
+                # Calculate total
+                record['total_generation'] = record['wind_generation'] + record['solar_generation']
+                processed_data.append(record)
+            
+            processed_df = pd.DataFrame(processed_data)
+            
+            # Performance optimization: limit to last 1000 records for speed
+            if len(processed_df) > 1000:
+                processed_df = processed_df.tail(1000)
+                st.info(f"🚀 Using last 1000 records for optimal performance")
+            
+            st.success(f"✅ Processed {len(processed_df)} real data records")
+            st.write(f"📊 Data range: {processed_df['datetime'].min()} to {processed_df['datetime'].max()}")
+            st.write(f"🏭 Stations: {sorted(processed_df['station_id'].unique())}")
+            
+            return processed_df
+            
+        except Exception as e:
+            st.error(f"Error processing real data: {e}")
+            st.info("📊 Falling back to sample data...")
             return self.generate_sample_data()
     
     def generate_sample_data(self):
